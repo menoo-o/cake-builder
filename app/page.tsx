@@ -1,103 +1,277 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useRef } from "react"
+import { Canvas } from "@react-three/fiber"
+import { OrbitControls, Environment } from "@react-three/drei"
+import { useGSAP } from "@gsap/react"
+import gsap from "gsap"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Eye, EyeOff } from "lucide-react"
+import { CakeScene } from "@/components/cake-scene"
+
+export type CakeSize = "6" | "8" | "10"
+export type SpongeType = "vanilla" | "red-velvet" | "chocolate" | "salted-caramel" | "lemon"
+export type FillingType = "pink" | "blue" | "yellow"
+export type ExtraType = "cookie-dough" | "caramelized-chocolate" | "oreo-crumbs"
+
+export interface CakeConfig {
+  size: CakeSize | null
+  sponge: SpongeType | null
+  filling: FillingType | null
+  extras: ExtraType[]
+}
+
+const sizeOptions = [
+  { value: "6" as CakeSize, label: '6"', blurb: "4–6 slices" },
+  { value: "8" as CakeSize, label: '8"', blurb: "8–10 slices" },
+  { value: "10" as CakeSize, label: '10"', blurb: "12–15 slices" },
+]
+
+const spongeOptions = [
+  { value: "vanilla" as SpongeType, label: "Vanilla", colour: "#FFF8DC" },
+  { value: "red-velvet" as SpongeType, label: "Red Velvet", colour: "#DC143C" },
+  { value: "chocolate" as SpongeType, label: "Chocolate", colour: "#8B4513" },
+  { value: "salted-caramel" as SpongeType, label: "Salted Caramel", colour: "#DEB887" },
+  { value: "lemon" as SpongeType, label: "Lemon", colour: "#FFFF99" },
+]
+
+const fillingOptions = [
+  { value: "pink" as FillingType, label: "Pink", colour: "#FFB6C1" },
+  { value: "blue" as FillingType, label: "Blue", colour: "#87CEEB" },
+  { value: "yellow" as FillingType, label: "Yellow", colour: "#FFFF99" },
+]
+
+const extraOptions = [
+  { value: "cookie-dough" as ExtraType, label: "Cookie Dough" },
+  { value: "caramelized-chocolate" as ExtraType, label: "Caramelized White Choc" },
+  { value: "oreo-crumbs" as ExtraType, label: "Oreo Crumbs" },
+]
+
+export default function CakeBuilder() {
+  /* ---------------- state ---------------- */
+  const [config, setConfig] = useState<CakeConfig>({
+    size: null,
+    sponge: null,
+    filling: null,
+    extras: [],
+  })
+
+  const [step, setStep] = useState<"size" | "sponge" | "filling" | "extras">("size")
+  const [mobilePreview, setMobilePreview] = useState(false)
+
+  /* -------------- helpers ---------------- */
+  const updateConfig = (changes: Partial<CakeConfig>) => setConfig((p) => ({ ...p, ...changes }))
+  const toggleExtra = (e: ExtraType) =>
+    setConfig((p) => ({
+      ...p,
+      extras: p.extras.includes(e) ? p.extras.filter((x) => x !== e) : [...p.extras, e],
+    }))
+
+  const canNext =
+    (step === "size" && config.size) ||
+    (step === "sponge" && config.sponge) ||
+    (step === "filling" && config.filling) ||
+    step === "extras"
+
+  /* -------------- GSAP entry animation ---------------- */
+  const stepRef = useRef<HTMLDivElement>(null)
+  useGSAP(
+    () => {
+      if (!stepRef.current) return
+      gsap.fromTo(stepRef.current, { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.4, ease: "power2.out" })
+    },
+    { dependencies: [step] },
+  )
+
+  /* ---------------- UI ---------------- */
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
+      <section className="container mx-auto px-4 py-10 max-w-7xl">
+        <h1 className="text-4xl font-bold text-center mb-8">Design Your Cake</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* === LEFT / controls ===================================================== */}
+          <div>
+            {/* progress dots */}
+            <div className="flex items-center justify-center mb-6 gap-2">
+              {["size", "sponge", "filling", "extras"].map((s, i) => {
+                const complete =
+                  (s === "size" && config.size) ||
+                  (s === "sponge" && config.sponge) ||
+                  (s === "filling" && config.filling) ||
+                  (s === "extras" && config.extras.length)
+                return (
+                  <div
+                    key={s}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      step === s
+                        ? "bg-pink-500 text-white"
+                        : complete
+                          ? "bg-green-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    {i + 1}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* mobile preview btn */}
+            <div className="lg:hidden mb-4">
+              <Button variant="outline" onClick={() => setMobilePreview(!mobilePreview)} className="w-full">
+                {mobilePreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                {mobilePreview ? "Hide preview" : "Show preview"}
+              </Button>
+            </div>
+
+            {/* mobile preview canvas */}
+            {mobilePreview && (
+              <Card className="mb-6">
+                <Canvas className="h-64" camera={{ position: [0, 0, 5], fov: 45 }}>
+                  <ambientLight intensity={0.5} />
+                  <pointLight position={[10, 10, 10]} />
+                  <CakeScene config={config} />
+                  <OrbitControls enableZoom={false} />
+                  <Environment preset="studio" />
+                </Canvas>
+              </Card>
+            )}
+
+            {/* STEP CONTENT */}
+            <div ref={stepRef} className="space-y-4">
+              {step === "size" && (
+                <>
+                  <h2 className="text-xl font-semibold">Choose a size</h2>
+                  <div className="grid gap-3">
+                    {sizeOptions.map((o) => (
+                      <Card
+                        key={o.value}
+                        onClick={() => updateConfig({ size: o.value })}
+                        className={`cursor-pointer transition hover:shadow ${
+                          config.size === o.value ? "ring-2 ring-pink-500 bg-pink-50" : ""
+                        }`}
+                      >
+                        <CardContent className="p-4 flex justify-between">
+                          <span className="font-medium">{o.label}</span>
+                          <span className="text-sm text-gray-600">{o.blurb}</span>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {step === "sponge" && (
+                <>
+                  <h2 className="text-xl font-semibold">Pick a sponge flavour</h2>
+                  <div className="grid gap-3">
+                    {spongeOptions.map((o) => (
+                      <Card
+                        key={o.value}
+                        onClick={() => updateConfig({ sponge: o.value })}
+                        className={`cursor-pointer transition hover:shadow ${
+                          config.sponge === o.value ? "ring-2 ring-pink-500 bg-pink-50" : ""
+                        }`}
+                      >
+                        <CardContent className="p-4 flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full border" style={{ backgroundColor: o.colour }} />
+                          <span className="font-medium">{o.label}</span>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {step === "filling" && (
+                <>
+                  <h2 className="text-xl font-semibold">Select a filling</h2>
+                  <div className="grid gap-3">
+                    {fillingOptions.map((o) => (
+                      <Card
+                        key={o.value}
+                        onClick={() => updateConfig({ filling: o.value })}
+                        className={`cursor-pointer transition hover:shadow ${
+                          config.filling === o.value ? "ring-2 ring-pink-500 bg-pink-50" : ""
+                        }`}
+                      >
+                        <CardContent className="p-4 flex items-center gap-4">
+                          <div className="w-16 h-6 rounded border" style={{ backgroundColor: o.colour }} />
+                          <span className="font-medium">{o.label}</span>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {step === "extras" && (
+                <>
+                  <h2 className="text-xl font-semibold">Add extras (optional)</h2>
+                  <div className="grid gap-3">
+                    {extraOptions.map((o) => (
+                      <Card
+                        key={o.value}
+                        onClick={() => toggleExtra(o.value)}
+                        className={`cursor-pointer transition hover:shadow ${
+                          config.extras.includes(o.value) ? "ring-2 ring-pink-500 bg-pink-50" : ""
+                        }`}
+                      >
+                        <CardContent className="p-4 flex justify-between">
+                          <span className="font-medium">{o.label}</span>
+                          {config.extras.includes(o.value) && <Badge>✓</Badge>}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* navigation */}
+              <div className="flex justify-between pt-4">
+                <Button
+                  variant="outline"
+                  disabled={step === "size"}
+                  onClick={() =>
+                    setStep((prev) =>
+                      prev === "sponge" ? "size" : prev === "filling" ? "sponge" : prev === "extras" ? "filling" : prev,
+                    )
+                  }
+                >
+                  Previous
+                </Button>
+                <Button
+                  disabled={!canNext}
+                  onClick={() =>
+                    setStep((prev) =>
+                      prev === "size" ? "sponge" : prev === "sponge" ? "filling" : prev === "filling" ? "extras" : prev,
+                    )
+                  }
+                  className="bg-pink-500 hover:bg-pink-600"
+                >
+                  {step === "extras" ? "Done" : "Next"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* === RIGHT / desktop preview =========================================== */}
+          <div className="hidden lg:block">
+            <Card className="h-[600px] p-4">
+              <Canvas className="h-full" camera={{ position: [0, 0, 5], fov: 45 }}>
+                <ambientLight intensity={0.5} />
+                <pointLight position={[10, 10, 10]} />
+                <CakeScene config={config} />
+                <OrbitControls enableZoom={false} />
+                <Environment preset="studio" />
+              </Canvas>
+            </Card>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+      </section>
+    </main>
+  )
 }
