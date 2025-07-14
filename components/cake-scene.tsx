@@ -21,8 +21,10 @@ export function CakeScene({ config }: CakeSceneProps) {
 
   /* gentle Y rotation */
   useFrame((state) => {
-    if (cakeRef.current) cakeRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.1
-  })
+    if (cakeRef.current){ 
+     cakeRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.1
+    }
+    })
 
   /* === dimensions & colours ======================================= */
   const cakeScale = useMemo(() => {

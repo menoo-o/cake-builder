@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Layered Cake</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        select, button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        select:hover, button:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #666;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        #canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <div class="control-group">
+                <label for="spongeSelect">Sponge Layers:</label>
+                <select id="spongeSelect">
+                    <option value="vanilla">Vanilla</option>
+                    <option value="chocolate">Chocolate</option>
+                    <option value="strawberry">Strawberry</option>
+                    <option value="lemon">Lemon</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="creamSelect">Cream Layers:</label>
+                <select id="creamSelect">
+                    <option value="vanilla">Vanilla Cream</option>
+                    <option value="chocolate">Chocolate Cream</option>
+                    <option value="strawberry">Strawberry Cream</option>
+                    <option value="caramel">Caramel Cream</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <button onclick="randomizeLayers()">Randomize Flavors</button>
+                <button onclick="resetCamera()">Reset View</button>
+            </div>
+        </div>
+
+        <div id="info">
+            Click and drag to rotate • Scroll to zoom • Beautiful layered cake with customizable flavors
+        </div>
+
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, cake, controls;
+        let spongeTextures = {};
+        let creamTextures = {};
+        let layers = [];
+
+        // Color palettes for different flavors
+        const flavors = {
+            sponge: {
+                vanilla: { color: 0xfff8dc, roughness: 0.8 },
+                chocolate: { color: 0x8b4513, roughness: 0.7 },
+                strawberry: { color: 0xffb6c1, roughness: 0.8 },
+                lemon: { color: 0xfff700, roughness: 0.8 }
+            },
+            cream: {
+                vanilla: { color: 0xfffacd, roughness: 0.3 },
+                chocolate: { color: 0xd2691e, roughness: 0.3 },
+                strawberry: { color: 0xff69b4, roughness: 0.3 },
+                caramel: { color: 0xdaa520, roughness: 0.3 }
+            }
+        };
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(5, 3, 5);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('canvas'),
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0xf0f0f0);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 0.5, 100);
+            pointLight.position.set(-5, 5, 5);
+            scene.add(pointLight);
+
+            // Create cake
+            createCake();
+
+            // Create cake stand
+            createCakeStand();
+
+            // Mouse controls
+            setupMouseControls();
+
+            // Event listeners
+            document.getElementById('spongeSelect').addEventListener('change', updateCake);
+            document.getElementById('creamSelect').addEventListener('change', updateCake);
+
+            // Start animation loop
+            animate();
+        }
+
+        function createCake() {
+            cake = new THREE.Group();
+            layers = [];
+
+            const radius = 2;
+            const layerHeight = 0.3;
+            const numLayers = 6;
+
+            // Create alternating sponge and cream layers
+            for (let i = 0; i < numLayers; i++) {
+                const isSpongeLyaer = i % 2 === 0;
+                const y = i * layerHeight;
+                
+                // Create full cylinder for the layer
+                const geometry = new THREE.CylinderGeometry(radius, radius, layerHeight, 32);
+                const material = new THREE.MeshLambertMaterial({
+                    color: isSpongeLyaer ? flavors.sponge.vanilla.color : flavors.cream.vanilla.color,
+                    roughness: isSpongeLyaer ? flavors.sponge.vanilla.roughness : flavors.cream.vanilla.roughness
+                });
+                
+                const layer = new THREE.Mesh(geometry, material);
+                layer.position.y = y;
+                layer.castShadow = true;
+                layer.receiveShadow = true;
+                
+                // Store layer info
+                layer.userData = {
+                    isSpongeLyaer: isSpongeLyaer,
+                    layerIndex: i
+                };
+                
+                layers.push(layer);
+                cake.add(layer);
+            }
+
+            // Create the slice cut-out
+            createSliceCutout();
+
+            // Add outer frosting
+            createOuterFrosting();
+
+            scene.add(cake);
+        }
+
+        function createSliceCutout() {
+            const sliceAngle = Math.PI / 4; // 45 degrees
+            const radius = 2.1;
+            const height = layers.length * 0.3;
+
+            // Create a wedge-shaped geometry to subtract from the cake
+            const sliceGeometry = new THREE.CylinderGeometry(radius, radius, height + 0.1, 32, 1, false, 0, sliceAngle);
+            const sliceMaterial = new THREE.MeshBasicMaterial({ 
+                transparent: true, 
+                opacity: 0,
+                side: THREE.DoubleSide
+            });
+            
+            const slice = new THREE.Mesh(sliceGeometry, sliceMaterial);
+            slice.position.y = height / 2 - 0.05;
+            
+            // Use CSG-like approach by hiding parts of the layers
+            layers.forEach(layer => {
+                // Create a custom geometry that excludes the slice area
+                const originalGeometry = layer.geometry;
+                const newGeometry = new THREE.CylinderGeometry(2, 2, 0.3, 32, 1, false, sliceAngle, Math.PI * 2 - sliceAngle);
+                layer.geometry = newGeometry;
+            });
+        }
+
+        function createOuterFrosting() {
+            const radius = 2.05;
+            const height = layers.length * 0.3;
+            const sliceAngle = Math.PI / 4;
+
+            // Main frosting cylinder
+            const frostingGeometry = new THREE.CylinderGeometry(radius, radius, height, 32, 1, false, sliceAngle, Math.PI * 2 - sliceAngle);
+            const frostingMaterial = new THREE.MeshLambertMaterial({
+                color: 0xfffacd,
+                roughness: 0.4
+            });
+            
+            const frosting = new THREE.Mesh(frostingGeometry, frostingMaterial);
+            frosting.position.y = height / 2;
+            frosting.castShadow = true;
+            frosting.receiveShadow = true;
+            
+            cake.add(frosting);
+
+            // Top frosting
+            const topGeometry = new THREE.CylinderGeometry(radius, radius, 0.1, 32, 1, false, sliceAngle, Math.PI * 2 - sliceAngle);
+            const topFrosting = new THREE.Mesh(topGeometry, frostingMaterial);
+            topFrosting.position.y = height + 0.05;
+            cake.add(topFrosting);
+        }
+
+        function createCakeStand() {
+            const standGeometry = new THREE.CylinderGeometry(2.5, 2.5, 0.2, 32);
+            const standMaterial = new THREE.MeshLambertMaterial({
+                color: 0xe8e8e8,
+                roughness: 0.2
+            });
+            
+            const stand = new THREE.Mesh(standGeometry, standMaterial);
+            stand.position.y = -0.2;
+            stand.castShadow = true;
+            stand.receiveShadow = true;
+            
+            scene.add(stand);
+        }
+
+        function updateCake() {
+            const spongeType = document.getElementById('spongeSelect').value;
+            const creamType = document.getElementById('creamSelect').value;
+
+            layers.forEach((layer, index) => {
+                if (layer.userData.isSpongeLyaer) {
+                    layer.material.color.setHex(flavors.sponge[spongeType].color);
+                    layer.material.roughness = flavors.sponge[spongeType].roughness;
+                } else {
+                    layer.material.color.setHex(flavors.cream[creamType].color);
+                    layer.material.roughness = flavors.cream[creamType].roughness;
+                }
+            });
+        }
+
+        function randomizeLayers() {
+            const spongeTypes = Object.keys(flavors.sponge);
+            const creamTypes = Object.keys(flavors.cream);
+            
+            const randomSponge = spongeTypes[Math.floor(Math.random() * spongeTypes.length)];
+            const randomCream = creamTypes[Math.floor(Math.random() * creamTypes.length)];
+            
+            document.getElementById('spongeSelect').value = randomSponge;
+            document.getElementById('creamSelect').value = randomCream;
+            
+            updateCake();
+        }
+
+        function resetCamera() {
+            camera.position.set(5, 3, 5);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function setupMouseControls() {
+            let isMouseDown = false;
+            let mouseX = 0;
+            let mouseY = 0;
+            let targetRotationX = 0;
+            let targetRotationY = 0;
+            let currentRotationX = 0;
+            let currentRotationY = 0;
+
+            const canvas = document.getElementById('canvas');
+
+            canvas.addEventListener('mousedown', (e) => {
+                isMouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isMouseDown = false;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isMouseDown) return;
+
+                const deltaX = e.clientX - mouseX;
+                const deltaY = e.clientY - mouseY;
+
+                targetRotationY += deltaX * 0.01;
+                targetRotationX += deltaY * 0.01;
+
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                const zoom = e.deltaY * 0.01;
+                camera.position.multiplyScalar(1 + zoom);
+                camera.position.clampLength(3, 15);
+            });
+
+            // Smooth rotation interpolation
+            function updateRotation() {
+                currentRotationX += (targetRotationX - currentRotationX) * 0.1;
+                currentRotationY += (targetRotationY - currentRotationY) * 0.1;
+                
+                if (cake) {
+                    cake.rotation.x = currentRotationX;
+                    cake.rotation.y = currentRotationY;
+                }
+            }
+
+            // Add to animation loop
+            const originalAnimate = animate;
+            animate = function() {
+                updateRotation();
+                originalAnimate();
+            };
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+
+        // Initialize the scene
+        init();
+    </script>
+</body>
+</html>
